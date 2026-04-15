@@ -49,6 +49,7 @@ nav:
       - Інтерактивний Swagger UI: api/swagger.md
   - Візуальна документація UI: frontend/storybook.md
   - CI/CD автоматизація: ci-cd-docs.md
+  - Definition of Done: definition-of-done.md
 
 markdown_extensions:
   - tables

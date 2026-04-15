@@ -28,6 +28,7 @@
 | **API Documentation**        | [Swagger UI](api/swagger.md)                     | Інтерактивне тестування API |
 | **Візуальна документація**   | [Storybook](frontend/storybook.md)               | UI-компоненти |
 | **CI/CD**                    | [Автоматизація документації](ci-cd-docs.md)      | Pipeline та публікація |
+| **Definition of Done**       | [DoD](definition-of-done.md)                       | Критерії готовності |
 
 ---
 
