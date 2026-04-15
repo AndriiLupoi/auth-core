@@ -23,7 +23,7 @@
 ### 1. Клонувати репозиторій
 
 ```bash
-git clone https://github.com/your-org/authcore.git
+git clone https://github.com/AndriiLupoi/auth-core.git
 cd authcore
 ```
 
