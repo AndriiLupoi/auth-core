@@ -1,0 +1,184 @@
+openapi: 3.1.0
+info:
+  title: AuthCore API
+  description: |
+    **AuthCore** — мікросервіс автентифікації та авторизації користувачів.
+    
+    API є **internal** і призначений для використання SPA-клієнтами та іншими мікросервісами організації.
+    Реалізує OAuth 2.0 + OpenID Connect, видачу JWT-токенів, 2FA та управління сесіями.
+  version: "1.2.0"
+  contact:
+    name: Команда розробки AuthCore
+
+servers:
+  - url: https://auth.example.com
+    description: Production
+  - url: http://localhost:8080
+    description: Local development
+
+security:
+  - bearerAuth: []
+
+paths:
+  /auth/register:
+    post:
+      summary: Реєстрація нового користувача
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Користувач успішно зареєстрований
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Користувач з таким email вже існує
+
+  /auth/login:
+    post:
+      summary: Вхід у систему (логін + пароль)
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Успішний вхід
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokens'
+        '401':
+          description: Невірні облікові дані
+
+  /auth/refresh:
+    post:
+      summary: Оновлення access-токена за refresh-токеном
+      tags: [Authentication]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Нові токени
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthTokens'
+        '401':
+          description: Невалідний або прострочений refresh token
+
+  /auth/logout:
+    post:
+      summary: Вихід з поточної сесії
+      tags: [Session]
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Успішний вихід
+
+  /auth/2fa/enable:
+    post:
+      summary: Увімкнення двофакторної автентифікації (TOTP)
+      tags: [2FA]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: QR-код та секрет для TOTP
+
+  /auth/sessions:
+    get:
+      summary: Отримати список активних сесій користувача
+      tags: [Session]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Список активних сесій
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Session'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token (RS256)
+
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [email, password, fullName]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, writeOnly: true, minLength: 8 }
+        fullName: { type: string }
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, writeOnly: true }
+
+    RefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken: { type: string }
+
+    AuthTokens:
+      type: object
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        expiresIn: { type: integer, description: "в секундах" }
+
+    UserResponse:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        fullName: { type: string }
+        emailVerified: { type: boolean }
+
+    Session:
+      type: object
+      properties:
+        id: { type: string }
+        userAgent: { type: string }
+        ipAddress: { type: string }
+        createdAt: { type: string, format: date-time }
+        lastUsedAt: { type: string, format: date-time }
+
+  responses:
+    BadRequest:
+      description: Некоректні дані запиту
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error: { type: string }
+              message: { type: string }

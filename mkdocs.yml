@@ -1,7 +1,7 @@
 site_name: AuthCore Documentation
 site_description: Централізований мікросервіс автентифікації та авторизації
 site_author: AuthCore Team
-docs_dir: .
+site_url: https://AndriiLupoi.github.io/authcore-docs/
 
 theme:
   name: material
@@ -10,28 +10,62 @@ theme:
     - scheme: default
       primary: indigo
       accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Темна тема
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Світла тема
   features:
     - navigation.tabs
     - navigation.sections
+    - navigation.top
     - toc.integrate
     - search.suggest
+    - content.code.copy
+    - content.action.edit
+
+plugins:
+  - search
+  - swagger-ui-tag
 
 nav:
   - Головна: README.md
   - Архітектура:
-    - System Specification (SSD): architecture/SSD.md
-    - Software Design (SDD): architecture/SDD.md
-    - Infrastructure (ISD): architecture/ISD.md
+      - System Specification (SSD): architecture/SSD.md
+      - Software Design (SDD): architecture/SDD.md
+      - Infrastructure (ISD): architecture/ISD.md
   - Якість:
-    - Test Strategy: quality/test-strategy.md
-    - Traceability Matrix: quality/traceability-matrix.md
+      - Test Strategy: quality/test-strategy.md
+      - Traceability Matrix: quality/traceability-matrix.md
   - Розробникам:
-    - Onboarding: developer/onboarding.md
+      - Onboarding: developer/onboarding.md
+  - API Documentation:
+      - Опис API: api/index.md
+      - OpenAPI Специфікація: api/openapi.yaml
+      - Інтерактивний Swagger UI: api/swagger.md
+  - Візуальна документація UI: frontend/storybook.md
+  - CI/CD автоматизація: ci-cd-docs.md
 
 markdown_extensions:
   - tables
   - toc:
       permalink: true
   - admonition
-  - pymdownx.highlight
+  - pymdownx.highlight:
+      anchor_linenums: true
   - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.details
+  - pymdownx.tasklist
+
+extra_css:
+  - https://unpkg.com/swagger-ui-dist@5/swagger-ui.css
+
+extra_javascript:
+  - https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js
+  - https://unpkg.com/swagger-ui-dist@5/swagger-ui-standalone-preset.js

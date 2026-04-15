@@ -1,56 +1,54 @@
-# AuthCore — Documentation
+# AuthCore Documentation
 
 > Централізований мікросервіс автентифікації та авторизації
 
-## Навігація
+## Про систему
 
-| Розділ | Документ | Призначення |
-|--------|----------|-------------|
-| Архітектура | [System Specification](architecture/SSD.md) | Вимоги, межі системи, функціональність |
-| Архітектура | [Software Design](architecture/SDD.md) | Архітектура, компоненти, REST API |
-| Архітектура | [Infrastructure](architecture/ISD.md) | Розгортання, Kubernetes, CI/CD |
-| Якість | [Test Strategy](quality/test-strategy.md) | Рівні тестування, інструменти, підхід |
-| Якість | [Traceability Matrix](quality/traceability-matrix.md) | Зв'язок вимог із тест-кейсами |
-| Розробка | [Developer Onboarding](developer/onboarding.md) | Як запустити проект локально |
+**AuthCore** — мікросервіс автентифікації та авторизації користувачів для інтеграції у розподілені системи та SPA-застосунки.  
+
+Сервіс реалізує протоколи **OAuth 2.0** та **OpenID Connect**, забезпечуючи єдиний вхід (SSO). Підтримує парольну автентифікацію, двофакторну автентифікацію (2FA), федеративний вхід через Google/GitHub та роботу з JWT-токенами.
+
+**Роль API**: Internal  
+**Цільова аудиторія**: Frontend-розробники, Backend-сервіси, QA та DevOps.
 
 ---
 
-## Про систему
+## Навігація по документації
 
-**AuthCore** — мікросервіс автентифікації та авторизації користувачів для інтеграції у розподілені системи та монолітні веб-застосунки.
-
-Реалізує протоколи **OAuth 2.0** та **OpenID Connect**, забезпечуючи єдиний вхід (SSO) для кількох клієнтських додатків.
-
-### Підтримувані механізми автентифікації
-
-- Парольна автентифікація з хешуванням bcrypt
-- Двофакторна автентифікація (TOTP / SMS-OTP)
-- Автентифікація через зовнішні провайдери (Google, GitHub)
-- Видача та перевірка JWT-токенів (access + refresh)
+| Розділ                        | Документ                                      | Призначення |
+|------------------------------|-----------------------------------------------|-------------|
+| **Архітектура**              | [System Specification (SSD)](architecture/SSD.md) | Функціональні та нефункціональні вимоги |
+| **Архітектура**              | [Software Design (SDD)](architecture/SDD.md)     | Архітектура, компоненти, API |
+| **Архітектура**              | [Infrastructure (ISD)](architecture/ISD.md)      | Розгортання та інфраструктура |
+| **Якість**                   | [Test Strategy](quality/test-strategy.md)        | Підхід до тестування |
+| **Якість**                   | [Traceability Matrix](quality/traceability-matrix.md) | Простежуваність вимог |
+| **Для розробників**          | [Onboarding](developer/onboarding.md)            | Як запустити проект |
+| **API Documentation**        | [Опис API](api/index.md)                         | Контракт API |
+| **API Documentation**        | [OpenAPI Специфікація](api/openapi.yaml)         | Повна специфікація |
+| **API Documentation**        | [Swagger UI](api/swagger.md)                     | Інтерактивне тестування API |
+| **Візуальна документація**   | [Storybook](frontend/storybook.md)               | UI-компоненти |
+| **CI/CD**                    | [Автоматизація документації](ci-cd-docs.md)      | Pipeline та публікація |
 
 ---
 
 ## Single Source of Truth
 
-| Тип даних | Джерело |
-|-----------|---------|
-| Функціональні вимоги | [SSD.md](architecture/SSD.md) |
-| Архітектурні рішення | [SDD.md](architecture/SDD.md) |
-| Інфраструктура | [ISD.md](architecture/ISD.md) |
-| Тест-кейси | [Traceability Matrix](quality/traceability-matrix.md) |
-
-> Усі тест-кейси посилаються на ідентифікатори вимог (`FR-XX`) із SSD. При зміні вимог — спочатку оновлюється SSD, потім Traceability Matrix.
+- Функціональні вимоги → `architecture/SSD.md`
+- Архітектурні рішення → `architecture/SDD.md`
+- API контракт → `api/openapi.yaml`
+- Тестування → `quality/traceability-matrix.md`
 
 ---
 
 ## Версійність документації
 
-| Версія | Дата | Опис змін |
-|--------|------|-----------|
-| v1.0 | 2025-04-15 | Початковий реліз документації (ЛР-8) |
+| Версія | Дата       | Опис змін |
+|--------|------------|-----------|
+| 1.2.0  | 15.04.2026 | Додано OpenAPI, Swagger UI, CI/CD (ЛР-9) |
+| 1.0.0  | 2025       | Базова документація (ЛР-7 + ЛР-8) |
 
-**Правила оновлення:**
-- При зміні API → оновлюється `SDD.md`
-- При зміні вимог → оновлюється `SSD.md`, потім `traceability-matrix.md`
-- При зміні інфраструктури → оновлюється `ISD.md`
-- Кожна зміна фіксується окремим git-комітом із описовим повідомленням
+**Публікація**: https://AndriiLupoi.github.io/authcore-docs/
+
+---
+
+*Документація генерується автоматично через GitHub Actions*
