@@ -45,7 +45,7 @@ nav:
       - Onboarding: developer/onboarding.md
   - API Documentation:
       - Опис API: api/index.md
-      - OpenAPI Специфікація: api/openapi.yaml
+      - OpenAPI Специфікація(завантажити): api/openapi.yaml
       - Інтерактивний Swagger UI: api/swagger.md
   - Візуальна документація UI: frontend/storybook.md
   - CI/CD автоматизація: ci-cd-docs.md

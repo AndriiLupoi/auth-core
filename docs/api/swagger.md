@@ -1,6 +1,6 @@
 # Інтерактивний Swagger UI
 
-<swagger-ui src="/api/openapi.yaml" />
+<swagger-ui src="openapi.yaml" />
 
 Swagger UI дозволяє:
 - Переглядати всі ендпоінти

@@ -1,71 +1,148 @@
-openapi: 3.1.0
+openapi: 3.0.3
 info:
   title: AuthCore API
   description: |
-    **AuthCore** — мікросервіс автентифікації та авторизації користувачів.
-    
-    API є **internal** і призначений для використання SPA-клієнтами та іншими мікросервісами організації.
-    Реалізує OAuth 2.0 + OpenID Connect, видачу JWT-токенів, 2FA та управління сесіями.
-  version: "1.2.0"
+    **AuthCore** — централізований мікросервіс автентифікації та авторизації.
+
+    API є внутрішнім і використовується SPA-клієнтом та мобільними застосунками організації.
+    Реалізує протоколи OAuth 2.0 та OpenID Connect.
+
+    ## Автентифікація
+    Більшість ендпоінтів вимагають Bearer Token у заголовку `Authorization`.
+    Access-токен має TTL 15 хвилин, refresh-токен — 30 днів.
+
+    ## Формат помилок
+    Всі помилки повертаються у форматі `ErrorResponse` з полями `code`, `message`, `timestamp`.
+  version: 1.0.0
   contact:
-    name: Команда розробки AuthCore
+    name: AuthCore Team
+    email: authcore@example.com
+  license:
+    name: Internal Use Only
 
 servers:
   - url: https://auth.example.com
     description: Production
+  - url: https://auth-staging.example.com
+    description: Staging
   - url: http://localhost:8080
-    description: Local development
+    description: Local Development
 
-security:
-  - bearerAuth: []
+tags:
+  - name: Authentication
+    description: Реєстрація, вхід, вихід
+  - name: Tokens
+    description: Управління JWT-токенами
+  - name: Two-Factor Auth
+    description: Двофакторна автентифікація (TOTP)
+  - name: Password
+    description: Скидання та відновлення пароля
+  - name: Sessions
+    description: Управління активними сесіями
+  - name: OAuth
+    description: Федеративна автентифікація (Google, GitHub)
 
 paths:
   /auth/register:
     post:
-      summary: Реєстрація нового користувача
       tags: [Authentication]
+      summary: Реєстрація нового користувача
+      description: |
+        Створює новий обліковий запис. Після реєстрації надсилає email
+        для підтвердження адреси. До підтвердження вхід у систему заблокований.
+      operationId: registerUser
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/RegisterRequest'
+            example:
+              email: user@example.com
+              password: "SecurePass123!"
+              displayName: "John Doe"
       responses:
         '201':
-          description: Користувач успішно зареєстрований
+          description: Користувача створено, очікується підтвердження email
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserResponse'
+                $ref: '#/components/schemas/RegisterResponse'
         '400':
           $ref: '#/components/responses/BadRequest'
         '409':
-          description: Користувач з таким email вже існує
+          description: Email вже зареєстровано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: EMAIL_ALREADY_EXISTS
+                message: "User with this email already exists"
+                timestamp: "2024-01-15T10:30:00Z"
 
   /auth/login:
     post:
-      summary: Вхід у систему (логін + пароль)
       tags: [Authentication]
+      summary: Вхід у систему
+      description: |
+        Автентифікація за email та паролем. Повертає пару JWT-токенів.
+        При увімкненій 2FA повертає `requiresTwoFactor: true` та тимчасовий токен
+        для завершення автентифікації через `/auth/2fa/verify`.
+      operationId: loginUser
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: user@example.com
+              password: "SecurePass123!"
       responses:
         '200':
           description: Успішний вхід
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuthTokens'
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
         '401':
           description: Невірні облікові дані
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: INVALID_CREDENTIALS
+                message: "Invalid email or password"
+                timestamp: "2024-01-15T10:30:00Z"
+        '403':
+          description: Email не підтверджено або акаунт заблоковано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: Забагато спроб входу (більше 5). Акаунт тимчасово заблоковано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: ACCOUNT_LOCKED
+                message: "Account temporarily locked. Try again in 15 minutes"
+                timestamp: "2024-01-15T10:30:00Z"
 
   /auth/refresh:
     post:
-      summary: Оновлення access-токена за refresh-токеном
-      tags: [Authentication]
+      tags: [Tokens]
+      summary: Оновлення access-токена
+      description: |
+        Видає новий access-токен за допомогою дійсного refresh-токена.
+        Кожен refresh-токен може бути використаний лише один раз (Refresh Token Rotation).
+      operationId: refreshToken
       requestBody:
         required: true
         content:
@@ -74,111 +151,418 @@ paths:
               $ref: '#/components/schemas/RefreshRequest'
       responses:
         '200':
-          description: Нові токени
+          description: Нові токени видано
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuthTokens'
+                $ref: '#/components/schemas/TokenPair'
         '401':
-          description: Невалідний або прострочений refresh token
+          description: Refresh-токен недійсний або прострочений
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: INVALID_REFRESH_TOKEN
+                message: "Refresh token is invalid or expired"
+                timestamp: "2024-01-15T10:30:00Z"
 
   /auth/logout:
     post:
+      tags: [Authentication]
       summary: Вихід з поточної сесії
-      tags: [Session]
+      description: Інвалідує поточний refresh-токен та завершує сесію.
+      operationId: logout
       security:
-        - bearerAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
       responses:
         '204':
           description: Успішний вихід
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/logout-all:
+    post:
+      tags: [Authentication]
+      summary: Завершення всіх активних сесій
+      description: Інвалідує всі refresh-токени користувача. Використовується при зміні пароля або підозрілій активності.
+      operationId: logoutAll
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Всі сесії завершено
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /auth/2fa/enable:
     post:
-      summary: Увімкнення двофакторної автентифікації (TOTP)
-      tags: [2FA]
+      tags: [Two-Factor Auth]
+      summary: Увімкнення 2FA (TOTP)
+      description: |
+        Генерує секретний ключ та QR-код для налаштування TOTP-додатку
+        (Google Authenticator, Authy тощо). 2FA активується після першого підтвердження.
+      operationId: enable2FA
       security:
-        - bearerAuth: []
+        - BearerAuth: []
       responses:
         '200':
-          description: QR-код та секрет для TOTP
+          description: QR-код та секрет для налаштування
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TwoFactorSetupResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: 2FA вже увімкнено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/2fa/verify:
+    post:
+      tags: [Two-Factor Auth]
+      summary: Підтвердження 2FA коду
+      description: Перевіряє TOTP-код. Використовується як при увімкненні 2FA, так і при вході.
+      operationId: verify2FA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TwoFactorVerifyRequest'
+      responses:
+        '200':
+          description: Код підтверджено, повні токени видано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Невірний або прострочений TOTP-код
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/password/forgot:
+    post:
+      tags: [Password]
+      summary: Запит на скидання пароля
+      description: |
+        Надсилає email із посиланням для скидання пароля. Посилання дійсне 30 хвилин.
+        Завжди повертає 200 (незалежно від того, чи існує email) — захист від enumeration.
+      operationId: forgotPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForgotPasswordRequest'
+      responses:
+        '200':
+          description: Якщо email існує — лист надіслано
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "If this email exists, a reset link has been sent"
+
+  /auth/password/reset:
+    post:
+      tags: [Password]
+      summary: Встановлення нового пароля
+      description: Встановлює новий пароль за допомогою токена з email-посилання.
+      operationId: resetPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPasswordRequest'
+      responses:
+        '204':
+          description: Пароль успішно змінено
+        '400':
+          description: Токен прострочений або недійсний
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: INVALID_RESET_TOKEN
+                message: "Password reset token is invalid or expired"
+                timestamp: "2024-01-15T10:30:00Z"
 
   /auth/sessions:
     get:
-      summary: Отримати список активних сесій користувача
-      tags: [Session]
+      tags: [Sessions]
+      summary: Список активних сесій
+      description: Повертає список усіх активних сесій поточного користувача з інформацією про пристрій та IP.
+      operationId: getSessions
       security:
-        - bearerAuth: []
+        - BearerAuth: []
       responses:
         '200':
-          description: Список активних сесій
+          description: Список сесій
           content:
             application/json:
               schema:
                 type: array
                 items:
                   $ref: '#/components/schemas/Session'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /oauth/{provider}:
+    get:
+      tags: [OAuth]
+      summary: Редирект до OAuth провайдера
+      description: Перенаправляє користувача на сторінку авторизації OAuth провайдера.
+      operationId: oauthRedirect
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [google, github]
+          description: OAuth провайдер
+      responses:
+        '302':
+          description: Редирект на сторінку провайдера
+
+  /oauth/{provider}/callback:
+    get:
+      tags: [OAuth]
+      summary: OAuth callback
+      description: Обробляє callback від OAuth провайдера, створює/знаходить акаунт та видає токени.
+      operationId: oauthCallback
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [google, github]
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Автентифікація успішна, токени видано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenPair'
+        '400':
+          $ref: '#/components/responses/BadRequest'
 
 components:
   securitySchemes:
-    bearerAuth:
+    BearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: JWT access token (RS256)
+      description: JWT access-токен (TTL 15 хвилин)
 
   schemas:
     RegisterRequest:
       type: object
-      required: [email, password, fullName]
+      required: [email, password]
       properties:
-        email: { type: string, format: email }
-        password: { type: string, writeOnly: true, minLength: 8 }
-        fullName: { type: string }
+        email:
+          type: string
+          format: email
+          description: Email адреса користувача
+        password:
+          type: string
+          minLength: 8
+          description: Пароль (мінімум 8 символів, має містити цифру та спецсимвол)
+        displayName:
+          type: string
+          maxLength: 100
+          description: Ім'я для відображення
+
+    RegisterResponse:
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        message:
+          type: string
+          example: "Registration successful. Please verify your email."
 
     LoginRequest:
       type: object
       required: [email, password]
       properties:
-        email: { type: string, format: email }
-        password: { type: string, writeOnly: true }
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    LoginResponse:
+      type: object
+      properties:
+        requiresTwoFactor:
+          type: boolean
+          description: true — потрібна 2FA, access/refresh не видаються
+        twoFactorToken:
+          type: string
+          description: Тимчасовий токен для завершення 2FA (тільки якщо requiresTwoFactor=true)
+        accessToken:
+          type: string
+          description: JWT access-токен (тільки якщо requiresTwoFactor=false)
+        refreshToken:
+          type: string
+          description: JWT refresh-токен (тільки якщо requiresTwoFactor=false)
+        expiresIn:
+          type: integer
+          description: TTL access-токена в секундах (900)
+
+    TokenPair:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+        expiresIn:
+          type: integer
+          example: 900
 
     RefreshRequest:
       type: object
       required: [refreshToken]
       properties:
-        refreshToken: { type: string }
+        refreshToken:
+          type: string
 
-    AuthTokens:
+    TwoFactorSetupResponse:
       type: object
       properties:
-        accessToken: { type: string }
-        refreshToken: { type: string }
-        expiresIn: { type: integer, description: "в секундах" }
+        secret:
+          type: string
+          description: Base32-кодований секрет для ручного введення
+        qrCodeUri:
+          type: string
+          format: uri
+          description: URI для QR-коду (otpauth://)
+        backupCodes:
+          type: array
+          items:
+            type: string
+          description: Одноразові резервні коди (зберегти!)
 
-    UserResponse:
+    TwoFactorVerifyRequest:
       type: object
+      required: [code]
       properties:
-        id: { type: string, format: uuid }
-        email: { type: string, format: email }
-        fullName: { type: string }
-        emailVerified: { type: boolean }
+        twoFactorToken:
+          type: string
+          description: Тимчасовий токен з LoginResponse
+        code:
+          type: string
+          pattern: '^\d{6}$'
+          description: 6-значний TOTP-код
+
+    ForgotPasswordRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+
+    ResetPasswordRequest:
+      type: object
+      required: [token, newPassword]
+      properties:
+        token:
+          type: string
+          description: Токен з email-посилання
+        newPassword:
+          type: string
+          minLength: 8
 
     Session:
       type: object
       properties:
-        id: { type: string }
-        userAgent: { type: string }
-        ipAddress: { type: string }
-        createdAt: { type: string, format: date-time }
-        lastUsedAt: { type: string, format: date-time }
+        sessionId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        lastActiveAt:
+          type: string
+          format: date-time
+        ipAddress:
+          type: string
+        userAgent:
+          type: string
+        isCurrent:
+          type: boolean
+          description: true — це поточна сесія
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          description: Машиночитаний код помилки
+          example: INVALID_CREDENTIALS
+        message:
+          type: string
+          description: Людиночитаний опис помилки
+        timestamp:
+          type: string
+          format: date-time
 
   responses:
     BadRequest:
-      description: Некоректні дані запиту
+      description: Невалідні вхідні дані
       content:
         application/json:
           schema:
-            type: object
-            properties:
-              error: { type: string }
-              message: { type: string }
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: VALIDATION_ERROR
+            message: "email: must be a valid email address"
+            timestamp: "2024-01-15T10:30:00Z"
+    Unauthorized:
+      description: Токен відсутній, недійсний або прострочений
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            code: UNAUTHORIZED
+            message: "Access token is missing or invalid"
+            timestamp: "2024-01-15T10:30:00Z"
